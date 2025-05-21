@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Sidebar, customerSidebarLinks } from "@/components/shared/Sidebar";
-import { useCanteen } from "@/context/CanteenContext";
+import { useCanteen, MenuItem } from "@/context/CanteenContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
