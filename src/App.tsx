@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CanteenProvider } from "./context/CanteenContext";
 
 // Auth Pages
+import Welcome from "./pages/auth/Welcome";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -30,7 +31,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element, all
   }
   
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/welcome" />;
   }
   
   if (allowedRoles.length && !allowedRoles.includes(user.role)) {
@@ -56,10 +57,11 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Routes>
-              {/* Redirect root to login */}
-              <Route path="/" element={<Navigate to="/login" />} />
+              {/* Redirect root to welcome */}
+              <Route path="/" element={<Navigate to="/welcome" />} />
               
               {/* Auth routes */}
+              <Route path="/welcome" element={<Welcome />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -88,11 +90,7 @@ const App = () => (
               {/* Customer routes */}
               <Route 
                 path="/customer" 
-                element={
-                  <ProtectedRoute allowedRoles={["customer"]}>
-                    <CustomerDashboard />
-                  </ProtectedRoute>
-                } 
+                element={<CustomerDashboard />}
               />
               
               {/* Catch all route */}
