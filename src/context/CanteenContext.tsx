@@ -100,10 +100,17 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Fetch user's orders
   const fetchUserOrders = async () => {
-    if (!user) return;
+    if (!user || !user.id) {
+      console.log("No authenticated user found, skipping order fetch");
+      setLoading(false);
+      setOrders([]);
+      return;
+    }
     
     setLoading(true);
     try {
+      console.log("Fetching orders for user ID:", user.id);
+      
       // Fetch orders
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -118,6 +125,8 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
         setLoading(false);
         return;
       }
+      
+      console.log("Orders fetched:", ordersData);
 
       // For each order, fetch its items
       const ordersWithItems = await Promise.all(
@@ -281,12 +290,14 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const placeOrder = async (order: Omit<Order, "id" | "timestamp">) => {
-    if (!user) {
+    if (!user || !user.id) {
       toast.error("You must be logged in to place an order");
       return;
     }
     
     try {
+      console.log("Placing order for user:", user.id);
+      
       // Insert order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -308,6 +319,7 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       
       const orderId = orderData[0].id;
+      console.log("Order created with ID:", orderId);
       
       // Insert order items
       const orderItems = order.items.map(item => ({
@@ -323,6 +335,8 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
         .insert(orderItems);
       
       if (itemsError) throw itemsError;
+      
+      console.log("Order items inserted successfully");
       
       // Refresh orders list
       await fetchUserOrders();
