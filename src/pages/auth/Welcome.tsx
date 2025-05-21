@@ -12,7 +12,7 @@ const Welcome = () => {
         <div className="mx-auto w-24 h-24 bg-canteen-primary rounded-full flex items-center justify-center mb-4">
           <span className="text-3xl text-white font-bold">CC</span>
         </div>
-        <h1 className="text-3xl font-bold text-canteen-primary">Canteen Connect</h1>
+        <h1 className="text-3xl font-bold text-canteen-primary">Canteen Food Ordering System</h1>
         <p className="text-gray-600 mt-2">Order delicious food from your campus canteen</p>
       </div>
 
@@ -70,9 +70,7 @@ const Welcome = () => {
       </Card>
       
       <div className="mt-8 text-center text-gray-600 text-sm">
-        <p>Demo accounts:</p>
-        <p>Admin: admin@canteen.com / admin123</p>
-        <p>Cashier: cashier@canteen.com / cashier123</p>
+        <p>Demo account:</p>
         <p>Customer: customer@canteen.com / customer123</p>
       </div>
     </div>
