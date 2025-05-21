@@ -130,18 +130,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       
       if (error) {
-        // Fallback to mock users if Supabase fails in development
-        const mockUser = MOCK_USERS.find(
-          (u) => u.email === email && u.password === password
-        );
-        
-        if (mockUser) {
-          // Remove password before saving
-          const { password: _, ...userWithoutPassword } = mockUser;
-          setUser(userWithoutPassword);
-          localStorage.setItem("canteen_user", JSON.stringify(userWithoutPassword));
-          navigate("/customer");
-          toast.success("Login successful using mock data!");
+        // Check specifically for email confirmation error
+        if (error.message.includes("Email not confirmed")) {
+          toast.error("Your email address has not been confirmed. Please check your inbox for a confirmation email.");
+          
+          // Offer to resend the confirmation email
+          toast("Would you like to resend the confirmation email?", {
+            action: {
+              label: "Resend",
+              onClick: async () => {
+                try {
+                  const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email,
+                  });
+                  
+                  if (error) throw error;
+                  toast.success("Confirmation email resent. Please check your inbox.");
+                } catch (resendError: any) {
+                  toast.error(resendError.message || "Failed to resend confirmation email.");
+                }
+              },
+            },
+          });
+          
+          // Fallback to mock users if Supabase fails in development
+          const mockUser = MOCK_USERS.find(
+            (u) => u.email === email && u.password === password
+          );
+          
+          if (mockUser) {
+            // Remove password before saving
+            const { password: _, ...userWithoutPassword } = mockUser;
+            setUser(userWithoutPassword);
+            localStorage.setItem("canteen_user", JSON.stringify(userWithoutPassword));
+            navigate("/customer");
+            toast.success("Login successful using mock data!");
+          }
         } else {
           throw error;
         }
@@ -178,11 +203,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (data.user) {
         toast.success("Account created successfully! Please verify your email if required.");
         
-        // Supabase may require email verification - check if session exists
-        if (data.session) {
-          navigate("/customer");
-        } else {
+        // Check if email confirmation is required
+        if (!data.session) {
+          toast("Please check your email for a verification link before logging in.", {
+            duration: 6000,
+          });
           navigate("/login");
+        } else {
+          // If no email confirmation is required, redirect to customer page
+          navigate("/customer");
         }
       }
     } catch (error: any) {
