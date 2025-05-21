@@ -35,7 +35,7 @@ const LoginForm = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@canteen.com"
+                placeholder="customer@canteen.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"

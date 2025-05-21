@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Sidebar, customerSidebarLinks } from "@/components/shared/Sidebar";
 import { useCanteen, MenuItem, Order, OrderItem } from "@/context/CanteenContext";
@@ -79,14 +78,21 @@ const CustomerDashboard = () => {
       return;
     }
 
+    // Check if user is logged in
+    if (!user) {
+      toast.error("Please login to place an order");
+      navigate("/login");
+      return;
+    }
+
     // Navigate to payment view if cart is not empty
     setView("payment");
   };
 
   // Handle payment
   const handlePayment = async (paymentMethod: "cash" | "card" | "upi") => {
-    if (!user && paymentMethod !== "cash") {
-      toast.error("Please login to use online payment methods");
+    if (!user) {
+      toast.error("Please login to use payment methods");
       navigate("/login");
       return;
     }
@@ -100,7 +106,7 @@ const CustomerDashboard = () => {
       items: orderItems,
       status: "pending",
       total: cartTotal,
-      customerName: user?.name || "Guest",
+      customerName: user.name,
       orderType: "takeaway", // Default to takeaway
       paymentStatus: "pending",
       paymentMethod: paymentMethod

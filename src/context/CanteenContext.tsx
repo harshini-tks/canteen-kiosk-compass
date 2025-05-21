@@ -65,7 +65,7 @@ const CanteenContext = createContext<CanteenContextType | undefined>(undefined);
 export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [salesData, setSalesData] = useState<SalesData>(MOCK_SALES_DATA);
