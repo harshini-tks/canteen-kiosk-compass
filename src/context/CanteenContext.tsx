@@ -144,16 +144,21 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
             customizations: item.customizations
           })) || [];
           
+          // Type cast the status to ensure it matches the Order interface
+          const orderStatus = order.status as "pending" | "preparing" | "ready" | "completed";
+          const paymentStatus = order.payment_status as "pending" | "completed";
+          const orderType = order.order_type as "dine-in" | "takeaway" | "scheduled";
+          
           return {
             id: order.id,
             items,
-            status: order.status,
+            status: orderStatus,
             total: Number(order.total),
             timestamp: new Date(order.created_at),
             customerName: order.customer_name,
-            orderType: order.order_type,
-            paymentStatus: order.payment_status,
-            paymentMethod: order.payment_method
+            orderType: orderType,
+            paymentStatus: paymentStatus,
+            paymentMethod: order.payment_method as "cash" | "card" | "upi" | undefined
           };
         })
       );
