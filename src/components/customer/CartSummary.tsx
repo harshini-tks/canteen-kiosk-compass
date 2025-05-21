@@ -4,12 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { MenuItem } from "@/context/CanteenContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CartSummaryProps {
   cartItems: { item: MenuItem; quantity: number }[];
   cartTotal: number;
   updateQuantity?: (itemId: string, quantity: number) => void;
   onCheckout: () => void;
+  loading?: boolean;
 }
 
 export const CartSummary: React.FC<CartSummaryProps> = ({
@@ -17,7 +19,41 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   cartTotal,
   updateQuantity,
   onCheckout,
+  loading = false
 }) => {
+  if (loading) {
+    return (
+      <Card className="sticky top-6">
+        <div className="p-4 border-b">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-5 w-5 rounded-full" />
+          </div>
+        </div>
+
+        <div className="p-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="mb-4">
+              <Skeleton className="h-4 w-full mb-2" />
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-4 border-t">
+          <div className="flex justify-between mb-4">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <Skeleton className="h-9 w-full" />
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="sticky top-6">
       <div className="p-4 border-b">

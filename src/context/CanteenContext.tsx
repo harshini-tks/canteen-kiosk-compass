@@ -1,6 +1,8 @@
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 export interface MenuItem {
   id: string;
@@ -44,114 +46,18 @@ interface CanteenContextType {
   addMenuItem: (item: Omit<MenuItem, "id">) => void;
   updateMenuItem: (id: string, item: Partial<MenuItem>) => void;
   deleteMenuItem: (id: string) => void;
-  placeOrder: (order: Omit<Order, "id" | "timestamp">) => void;
+  placeOrder: (order: Omit<Order, "id" | "timestamp">) => Promise<void>;
   updateOrderStatus: (id: string, status: Order["status"]) => void;
   updatePaymentStatus: (id: string, status: Order["paymentStatus"], method?: Order["paymentMethod"]) => void;
+  loading: boolean;
+  fetchUserOrders: () => Promise<void>;
 }
 
-// Mock menu data
-const MOCK_MENU_ITEMS: MenuItem[] = [
-  {
-    id: "1",
-    name: "Vegetable Sandwich",
-    price: 60,
-    category: "Sandwiches",
-    description: "Fresh vegetables with cheese in toasted bread",
-    available: true,
-    vegetarian: true,
-  },
-  {
-    id: "2",
-    name: "Chicken Burger",
-    price: 120,
-    category: "Burgers",
-    description: "Grilled chicken patty with lettuce and mayo",
-    available: true,
-    vegetarian: false,
-  },
-  {
-    id: "3",
-    name: "Cold Coffee",
-    price: 80,
-    category: "Beverages",
-    description: "Chilled coffee with ice cream",
-    available: true,
-    vegetarian: true,
-  },
-  {
-    id: "4",
-    name: "Masala Dosa",
-    price: 90,
-    category: "South Indian",
-    description: "Crispy dosa with potato filling",
-    available: true,
-    vegetarian: true,
-  },
-  {
-    id: "5",
-    name: "Chicken Biryani",
-    price: 150,
-    category: "Main Course",
-    description: "Fragrant rice cooked with chicken and spices",
-    available: true,
-    vegetarian: false,
-  }
-];
-
-// Mock orders data
-const MOCK_ORDERS: Order[] = [
-  {
-    id: "1",
-    items: [
-      { menuItem: MOCK_MENU_ITEMS[0], quantity: 2 },
-      { menuItem: MOCK_MENU_ITEMS[2], quantity: 1 }
-    ],
-    status: "completed",
-    total: 200,
-    timestamp: new Date(Date.now() - 3600000),
-    customerName: "John Doe",
-    orderType: "dine-in",
-    paymentStatus: "completed",
-    paymentMethod: "cash"
-  },
-  {
-    id: "2",
-    items: [
-      { menuItem: MOCK_MENU_ITEMS[1], quantity: 1 },
-      { menuItem: MOCK_MENU_ITEMS[2], quantity: 2 }
-    ],
-    status: "ready",
-    total: 280,
-    timestamp: new Date(Date.now() - 1800000),
-    customerName: "Jane Smith",
-    orderType: "takeaway",
-    paymentStatus: "completed",
-    paymentMethod: "card"
-  },
-  {
-    id: "3",
-    items: [
-      { menuItem: MOCK_MENU_ITEMS[4], quantity: 1 },
-    ],
-    status: "preparing",
-    total: 150,
-    timestamp: new Date(),
-    customerName: "Mike Johnson",
-    orderType: "dine-in",
-    paymentStatus: "pending"
-  }
-];
-
-// Mock sales data
+// Mock sales data for Dashboard
 const MOCK_SALES_DATA: SalesData = {
-  today: 630,
-  transactions: 3,
-  popularItems: [
-    { name: "Cold Coffee", count: 3 },
-    { name: "Vegetable Sandwich", count: 2 },
-    { name: "Chicken Burger", count: 1 },
-    { name: "Chicken Biryani", count: 1 }
-  ]
+  today: 0,
+  transactions: 0,
+  popularItems: []
 };
 
 const CanteenContext = createContext<CanteenContextType | undefined>(undefined);
@@ -159,88 +65,315 @@ const CanteenContext = createContext<CanteenContextType | undefined>(undefined);
 export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
-  const [menu, setMenu] = useState<MenuItem[]>(MOCK_MENU_ITEMS);
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const { user } = useAuth();
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [salesData, setSalesData] = useState<SalesData>(MOCK_SALES_DATA);
+  const [loading, setLoading] = useState(true);
 
-  const addMenuItem = (item: Omit<MenuItem, "id">) => {
-    const newItem = {
-      ...item,
-      id: `${menu.length + 1}`,
-    };
-    setMenu([...menu, newItem]);
-    toast.success(`${item.name} added to menu`);
-  };
-
-  const updateMenuItem = (id: string, item: Partial<MenuItem>) => {
-    setMenu(menu.map(menuItem => 
-      menuItem.id === id ? { ...menuItem, ...item } : menuItem
-    ));
-    toast.success("Menu item updated");
-  };
-
-  const deleteMenuItem = (id: string) => {
-    setMenu(menu.filter(item => item.id !== id));
-    toast.success("Menu item deleted");
-  };
-
-  const placeOrder = (order: Omit<Order, "id" | "timestamp">) => {
-    const newOrder = {
-      ...order,
-      id: `${orders.length + 1}`,
-      timestamp: new Date(),
-    };
-    
-    setOrders([newOrder, ...orders]);
-    
-    // Update sales data
-    setSalesData({
-      ...salesData,
-      today: salesData.today + newOrder.total,
-      transactions: salesData.transactions + 1,
-      popularItems: updatePopularItems(newOrder.items, salesData.popularItems)
-    });
-    
-    toast.success("Order placed successfully");
-  };
-
-  const updatePopularItems = (
-    orderItems: OrderItem[], 
-    popularItems: { name: string; count: number }[]
-  ) => {
-    const updatedPopularItems = [...popularItems];
-    
-    orderItems.forEach(item => {
-      const itemName = item.menuItem.name;
-      const existingItem = updatedPopularItems.find(i => i.name === itemName);
+  // Fetch menu items from Supabase
+  const fetchMenuItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*');
       
-      if (existingItem) {
-        existingItem.count += item.quantity;
-      } else {
-        updatedPopularItems.push({ name: itemName, count: item.quantity });
+      if (error) throw error;
+      
+      if (data) {
+        setMenu(data.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price),
+          category: item.category,
+          description: item.description,
+          image: item.image || undefined,
+          available: item.available || true,
+          vegetarian: item.vegetarian || false
+        })));
       }
-    });
+    } catch (error) {
+      console.error('Error fetching menu items:', error);
+      toast.error('Failed to load menu items');
+    }
+  };
+
+  // Fetch user's orders
+  const fetchUserOrders = async () => {
+    if (!user) return;
     
-    // Sort by count in descending order
-    return updatedPopularItems.sort((a, b) => b.count - a.count);
+    setLoading(true);
+    try {
+      // Fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (ordersError) throw ordersError;
+      
+      if (!ordersData) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      // For each order, fetch its items
+      const ordersWithItems = await Promise.all(
+        ordersData.map(async (order) => {
+          const { data: orderItemsData, error: orderItemsError } = await supabase
+            .from('order_items')
+            .select('*, menu_item_id(*)')
+            .eq('order_id', order.id);
+          
+          if (orderItemsError) throw orderItemsError;
+          
+          const items = orderItemsData?.map(item => ({
+            menuItem: {
+              id: item.menu_item_id.id,
+              name: item.menu_item_id.name,
+              price: Number(item.menu_item_id.price),
+              category: item.menu_item_id.category,
+              description: item.menu_item_id.description,
+              image: item.menu_item_id.image || undefined,
+              available: item.menu_item_id.available,
+              vegetarian: item.menu_item_id.vegetarian
+            },
+            quantity: item.quantity,
+            customizations: item.customizations
+          })) || [];
+          
+          return {
+            id: order.id,
+            items,
+            status: order.status,
+            total: Number(order.total),
+            timestamp: new Date(order.created_at),
+            customerName: order.customer_name,
+            orderType: order.order_type,
+            paymentStatus: order.payment_status,
+            paymentMethod: order.payment_method
+          };
+        })
+      );
+      
+      setOrders(ordersWithItems);
+      
+      // Update sales data
+      if (ordersWithItems.length > 0) {
+        const today = new Date();
+        const todayOrders = ordersWithItems.filter(
+          order => order.timestamp.toDateString() === today.toDateString()
+        );
+        
+        const todayTotal = todayOrders.reduce((sum, order) => sum + order.total, 0);
+        const allItems = ordersWithItems.flatMap(order => 
+          order.items.map(item => ({ name: item.menuItem.name, count: item.quantity }))
+        );
+        
+        // Group by item name and sum counts
+        const itemCounts = allItems.reduce((acc, { name, count }) => {
+          acc[name] = (acc[name] || 0) + count;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        // Convert to array and sort by count
+        const popularItems = Object.entries(itemCounts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+        
+        setSalesData({
+          today: todayTotal,
+          transactions: todayOrders.length,
+          popularItems
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateOrderStatus = (id: string, status: Order["status"]) => {
-    setOrders(orders.map(order => 
-      order.id === id ? { ...order, status } : order
-    ));
-    toast.success(`Order status updated to ${status}`);
+  // Initialize data
+  useEffect(() => {
+    fetchMenuItems();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserOrders();
+    }
+  }, [user]);
+
+  const addMenuItem = async (item: Omit<MenuItem, "id">) => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .insert([{
+          name: item.name,
+          price: item.price,
+          category: item.category,
+          description: item.description,
+          image: item.image,
+          available: item.available,
+          vegetarian: item.vegetarian
+        }])
+        .select();
+      
+      if (error) throw error;
+      
+      if (data && data[0]) {
+        const newItem = {
+          ...item,
+          id: data[0].id,
+        };
+        setMenu([...menu, newItem]);
+        toast.success(`${item.name} added to menu`);
+      }
+    } catch (error) {
+      console.error('Error adding menu item:', error);
+      toast.error('Failed to add menu item');
+    }
   };
 
-  const updatePaymentStatus = (id: string, paymentStatus: Order["paymentStatus"], paymentMethod?: Order["paymentMethod"]) => {
-    setOrders(orders.map(order => 
-      order.id === id ? { 
-        ...order, 
-        paymentStatus,
-        ...(paymentMethod ? { paymentMethod } : {})
-      } : order
-    ));
-    toast.success(`Payment status updated to ${paymentStatus}`);
+  const updateMenuItem = async (id: string, item: Partial<MenuItem>) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update(item)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMenu(menu.map(menuItem => 
+        menuItem.id === id ? { ...menuItem, ...item } : menuItem
+      ));
+      toast.success("Menu item updated");
+    } catch (error) {
+      console.error('Error updating menu item:', error);
+      toast.error('Failed to update menu item');
+    }
+  };
+
+  const deleteMenuItem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setMenu(menu.filter(item => item.id !== id));
+      toast.success("Menu item deleted");
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete menu item');
+    }
+  };
+
+  const placeOrder = async (order: Omit<Order, "id" | "timestamp">) => {
+    if (!user) {
+      toast.error("You must be logged in to place an order");
+      return;
+    }
+    
+    try {
+      // Insert order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          customer_name: user.name,
+          user_id: user.id,
+          status: order.status,
+          total: order.total,
+          order_type: order.orderType,
+          payment_status: order.paymentStatus,
+          payment_method: order.paymentMethod
+        }])
+        .select();
+      
+      if (orderError) throw orderError;
+      
+      if (!orderData || !orderData[0]) {
+        throw new Error("Failed to create order");
+      }
+      
+      const orderId = orderData[0].id;
+      
+      // Insert order items
+      const orderItems = order.items.map(item => ({
+        order_id: orderId,
+        menu_item_id: item.menuItem.id,
+        quantity: item.quantity,
+        customizations: item.customizations,
+        price_at_time: item.menuItem.price
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+      
+      if (itemsError) throw itemsError;
+      
+      // Refresh orders list
+      await fetchUserOrders();
+      
+      toast.success("Order placed successfully");
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast.error('Failed to place order');
+    }
+  };
+
+  const updateOrderStatus = async (id: string, status: Order["status"]) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setOrders(orders.map(order => 
+        order.id === id ? { ...order, status } : order
+      ));
+      toast.success(`Order status updated to ${status}`);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    }
+  };
+
+  const updatePaymentStatus = async (id: string, paymentStatus: Order["paymentStatus"], paymentMethod?: Order["paymentMethod"]) => {
+    try {
+      const updateData: any = { payment_status: paymentStatus };
+      if (paymentMethod) {
+        updateData.payment_method = paymentMethod;
+      }
+      
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setOrders(orders.map(order => 
+        order.id === id ? { 
+          ...order, 
+          paymentStatus,
+          ...(paymentMethod ? { paymentMethod } : {})
+        } : order
+      ));
+      toast.success(`Payment status updated to ${paymentStatus}`);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('Failed to update payment status');
+    }
   };
 
   return (
@@ -255,6 +388,8 @@ export const CanteenProvider: React.FC<{ children: React.ReactNode }> = ({
         placeOrder,
         updateOrderStatus,
         updatePaymentStatus,
+        loading,
+        fetchUserOrders
       }}
     >
       {children}

@@ -4,12 +4,14 @@ import { Order } from "@/context/CanteenContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OrderHistoryProps {
   orders: Order[];
+  loading?: boolean;
 }
 
-export const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
+export const OrderHistory: React.FC<OrderHistoryProps> = ({ orders, loading = false }) => {
   // Function to format date
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {
@@ -46,6 +48,45 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2].map((i) => (
+          <Card key={i} className="overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b">
+              <div className="flex justify-between items-center">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-full max-w-[300px]" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-full max-w-[250px]" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-full max-w-[200px]" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   if (orders.length === 0) {
     return (
       <div className="text-center py-12">
@@ -60,7 +101,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
         <Card key={order.id} className="overflow-hidden">
           <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
             <div>
-              <div className="font-medium">Order #{order.id}</div>
+              <div className="font-medium">Order #{order.id.substring(0, 8)}</div>
               <div className="text-sm text-gray-500">{formatDate(order.timestamp)}</div>
             </div>
             <div className="flex gap-2">

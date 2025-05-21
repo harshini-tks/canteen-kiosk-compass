@@ -9,14 +9,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Search, ShoppingCart, History, ArrowLeft } from "lucide-react";
+import { Search, ShoppingCart, History, ArrowLeft, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CartSummary } from "@/components/customer/CartSummary";
 import { OrderHistory } from "@/components/customer/OrderHistory";
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
-  const { menu, orders, placeOrder } = useCanteen();
+  const { menu, orders, placeOrder, loading, fetchUserOrders } = useCanteen();
   const [searchQuery, setSearchQuery] = useState("");
   const [cartItems, setCartItems] = useState<{item: MenuItem, quantity: number}[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -73,9 +73,15 @@ const CustomerDashboard = () => {
   };
 
   // Handle checkout
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error("Your cart is empty");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Please login to place an order");
+      navigate("/login");
       return;
     }
 
@@ -93,15 +99,22 @@ const CustomerDashboard = () => {
       paymentStatus: "pending",
     };
 
-    placeOrder(newOrder);
+    await placeOrder(newOrder);
     setCartItems([]);
-    toast.success("Order placed successfully!");
     setView("history");
   };
 
-  // Filter user's orders
-  const userOrders = orders.filter(order => order.customerName === user?.name)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  // Refresh orders
+  const handleRefreshOrders = () => {
+    fetchUserOrders();
+  };
+
+  // If not logged in and trying to view history, redirect to menu
+  useEffect(() => {
+    if (!user && view === "history") {
+      setView("menu");
+    }
+  }, [user, view]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -110,7 +123,7 @@ const CustomerDashboard = () => {
       <div className="flex-1 overflow-y-auto p-6">
         <header className="mb-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Welcome, {user?.name}</h1>
+            <h1 className="text-3xl font-bold">Welcome, {user?.name || "Guest"}</h1>
             <p className="text-gray-600">Browse our menu and place your order</p>
           </div>
           <div className="flex space-x-3">
@@ -124,7 +137,7 @@ const CustomerDashboard = () => {
                 Back to Menu
               </Button>
             )}
-            {view !== "cart" && (
+            {view !== "cart" && cartItems.length > 0 && (
               <Button 
                 onClick={() => setView("cart")} 
                 className="flex items-center gap-2 bg-canteen-primary hover:bg-canteen-secondary"
@@ -133,7 +146,7 @@ const CustomerDashboard = () => {
                 Cart {cartItems.length > 0 && `(${cartItems.length})`}
               </Button>
             )}
-            {view !== "history" && (
+            {view !== "history" && user && (
               <Button 
                 variant="outline" 
                 onClick={() => setView("history")}
@@ -141,6 +154,16 @@ const CustomerDashboard = () => {
               >
                 <History size={16} />
                 Order History
+              </Button>
+            )}
+            {view === "history" && (
+              <Button
+                variant="outline"
+                onClick={handleRefreshOrders}
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw size={16} />
+                Refresh
               </Button>
             )}
           </div>
@@ -300,7 +323,14 @@ const CustomerDashboard = () => {
         {view === "history" && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Your Order History</h2>
-            <OrderHistory orders={userOrders} />
+            {!user ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">Please login to view your order history</p>
+                <Button onClick={() => navigate("/login")}>Login</Button>
+              </div>
+            ) : (
+              <OrderHistory orders={orders} loading={loading} />
+            )}
           </div>
         )}
       </div>
